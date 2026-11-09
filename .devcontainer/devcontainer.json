@@ -1,0 +1,15 @@
+{
+  "name": "GardenerOS",
+  "image": "myopeneuler:v1",
+  "remoteUser": "root",
+  "workspaceFolder": "/mnt/os",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/mnt,type=bind"
+  ],
+  "postCreateCommand": "cd /mnt/os && rustup target add riscv64gc-unknown-none-elf || true",
+  "customizations": {
+    "vscode": {
+      "extensions": ["rust-lang.rust-analyzer"]
+    }
+  }
+}
