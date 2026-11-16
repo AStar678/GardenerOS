@@ -1,53 +1,48 @@
 #![no_std]
 #![no_main]
+#[macro_use]
 
-use core::panic::PanicInfo;
+mod console;
+mod lang_items;
+mod sbi;
+
 use core::arch::global_asm;
-use core::arch::asm;
 
 global_asm!(include_str!("entry.asm"));
-
-const SYSCALL_EXIT: usize = 93;
-
-
-
-#[no_mangle]
-pub fn rust_main() -> ! {
-    loop{};
-}
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
-}
-
 fn clear_bss() {
-    extern "C" {
+    unsafe extern "C" {
         fn sbss();
         fn ebss();
     }
-    (sbss as usize..ebss as usize).for_each(|a| unsafe { (a as *mut u8).write_volatile(0) });
+    let sbss_ptr = sbss as *const () as usize;
+    let ebss_ptr = ebss as *const () as usize;
+    (sbss_ptr..ebss_ptr).for_each(|a| unsafe { (a as *mut u8).write_volatile(0) });
 }
 
-fn syscall(id: usize, args: [usize; 3]) -> isize {
-    let mut ret: isize;
-    unsafe {
-        asm!("ecall",
-             in("x10") args[0],
-             in("x11") args[1],
-             in("x12") args[2],
-             in("x17") id,
-             lateout("x10") ret
-        );
+#[unsafe(no_mangle)]
+pub fn rust_main() -> ! {
+    unsafe extern "C" {
+        fn stext();
+        fn etext();
+        fn srodata();
+        fn erodata();
+        fn sdata();
+        fn edata();
+        fn sbss();
+        fn ebss();
+        fn boot_stack();
+        fn boot_stack_top();
     }
-    ret
-}
-
-pub fn sys_exit(xstate: i32) -> isize {
-    syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])
-}
-
-#[no_mangle]
-extern "C" fn _start() {
-    sys_exit(9);
+    clear_bss();
+    println!("Hello, world!");
+    println!(".text [{:#x}, {:#x})", stext as *const () as usize, etext as *const () as usize);
+    println!(".rodata [{:#x}, {:#x})", srodata as *const () as usize, erodata as *const () as usize);
+    println!(".data [{:#x}, {:#x})", sdata as *const () as usize, edata as *const () as usize);
+    println!(
+        "boot_stack [{:#x}, {:#x})",
+        boot_stack as *const () as usize, boot_stack_top as *const () as usize
+    );
+    println!(".bss [{:#x}, {:#x})", sbss as *const () as usize, ebss as *const () as usize);
+    println!("Hello, world!");
+    panic!("Shutdown machine!");
 }
